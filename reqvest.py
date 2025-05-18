@@ -30,4 +30,16 @@ async def on_message(message):
     logger.info(f"Received message from {message.author}: {message.content}")
     await bot.process_commands(message)
 
+@bot.command()
+async def suggest(ctx, *, message):
+    stock_input = message.upper().replace(' ', '')
+    stock_list = list(set(stock_input.split(',')))
+
+    if not stock_list:
+        await ctx.send("Please provide at least one stock symbol.")
+        return
+
+    #add_suggestions(str(ctx.author.id), stock_list)
+    await ctx.send(f"Suggestions received: {', '.join(stock_list)}")
+
 bot.run(token)
