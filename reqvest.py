@@ -3,6 +3,7 @@ from discord.ext import commands
 from dotenv import load_dotenv
 import os
 import logging
+from db import init_db, add_suggestions, tally_suggestions
 
 load_dotenv()
 token = os.getenv('DISCORD_TOKEN')
@@ -22,6 +23,7 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 @bot.event
 async def on_ready():
     logger.info(f"Bot connected as {bot.user}")
+    init_db()
 
 @bot.event
 async def on_message(message):
@@ -39,7 +41,17 @@ async def suggest(ctx, *, message):
         await ctx.send("Please provide at least one stock symbol.")
         return
 
-    #add_suggestions(str(ctx.author.id), stock_list)
+    add_suggestions(str(ctx.author.id), stock_list)
     await ctx.send(f"Suggestions received: {', '.join(stock_list)}")
+
+@bot.command()
+async def tally(ctx):
+    tally_result = tally_suggestions()
+    if not tally_result:
+        await ctx.send("No suggestions this week.")
+        return
+
+    result_lines = [f"**{symbol}**: {count} vote(s)" for symbol, count in tally_result]
+    await ctx.send("\n".join(result_lines))
 
 bot.run(token)
