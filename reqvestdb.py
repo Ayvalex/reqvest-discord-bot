@@ -51,24 +51,19 @@ def get_suggestion_id(conn, stock_symbol):
     c.execute('INSERT INTO suggestions (stock_symbol) VALUES (?)', (stock_symbol,))
     return c.lastrowid
 
-def get_current_week():
-    today = datetime.now()
-    return today.strftime('%Y-%W') 
-
-def add_suggestions(user_id, stock_symbols):
-    week = get_current_week()
+def add_suggestions(member_name, stock_symbols):
     with sqlite3.connect(DB_FILE) as conn:
         c = conn.cursor()
+        member_id = get_member_id(conn, member_name)
         for symbol in stock_symbols:
-            c.execute('''
-                SELECT 1 FROM suggestions
-                WHERE user_id = ? AND stock_symbol = ? AND week_start = ?
-            ''', (user_id, symbol, week))
-            if not c.fetchone():
+            suggestion_id = get_suggestion_id(conn, symbol)
+            try:
                 c.execute('''
-                    INSERT INTO suggestions (user_id, stock_symbol, week_start)
-                    VALUES (?, ?, ?)
-                ''', (user_id, symbol, week))
+                    INSERT INTO members_suggestions (member_id, suggestion_id)
+                    VALUES (?, ?)
+                ''', (member_id, suggestion_id))
+            except sqlite3.IntegrityError:
+                pass  
         conn.commit()
 
 def tally_suggestions():
