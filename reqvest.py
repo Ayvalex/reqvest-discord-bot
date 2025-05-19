@@ -3,7 +3,7 @@ from discord.ext import commands
 from dotenv import load_dotenv
 import os
 import logging
-from db import init_db, add_suggestions, tally_suggestions
+from reqvestdb import init_db, add_suggestions, tally_suggestions
 
 load_dotenv()
 token = os.getenv('DISCORD_TOKEN')
