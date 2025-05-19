@@ -81,5 +81,7 @@ def tally_suggestions():
 def reset_suggestions():
     with sqlite3.connect(DB_FILE) as conn:
         c = conn.cursor()
+        c.execute('DELETE FROM members_suggestions')
+        c.execute('DELETE FROM members')
         c.execute('DELETE FROM suggestions')
         conn.commit()
