@@ -67,16 +67,15 @@ def add_suggestions(member_name, stock_symbols):
         conn.commit()
 
 def tally_suggestions():
-    week = get_current_week()
     with sqlite3.connect(DB_FILE) as conn:
         c = conn.cursor()
         c.execute('''
-            SELECT stock_symbol, COUNT(DISTINCT user_id) as votes
-            FROM suggestions
-            WHERE week_start = ?
-            GROUP BY stock_symbol
+            SELECT s.stock_symbol, COUNT(ms.member_id) AS votes
+            FROM suggestions s
+            JOIN members_suggestions ms ON s.suggestion_id = ms.suggestion_id
+            GROUP BY s.stock_symbol
             ORDER BY votes DESC
-        ''', (week,))
+        ''')
         return c.fetchall()
 
 def reset_suggestions():
