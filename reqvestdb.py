@@ -6,19 +6,36 @@ DB_FILE = "suggestions.db"
 def init_db():
     with sqlite3.connect(DB_FILE) as conn:
         c = conn.cursor()
+
         c.execute('''
-            CREATE TABLE IF NOT EXISTS suggestions (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id TEXT,
-                stock_symbol TEXT,
-                week_start DATE
+            CREATE TABLE IF NOT EXISTS members (
+                member_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                member_name TEXT NOT NULL UNIQUE
             )
         ''')
+
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS suggestions (
+                suggestion_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                stock_symbol TEXT NOT NULL UNIQUE
+            )
+        ''')
+
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS members_suggestions (
+                member_id INTEGER,
+                suggestion_id INTEGER,
+                PRIMARY KEY (member_id, suggestion_id),
+                FOREIGN KEY (member_id) REFERENCES members(member_id),
+                FOREIGN KEY (suggestion_id) REFERENCES suggestions(suggestion_id)
+            )
+        ''')
+
         conn.commit()
 
 def get_current_week():
     today = datetime.now()
-    return today.strftime('%Y-%W')  # Year-Week format
+    return today.strftime('%Y-%W') 
 
 def add_suggestions(user_id, stock_symbols):
     week = get_current_week()
