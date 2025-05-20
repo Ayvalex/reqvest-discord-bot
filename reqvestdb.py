@@ -9,25 +9,24 @@ def init_db():
 
         c.execute('''
             CREATE TABLE IF NOT EXISTS members (
-                member_id INTEGER PRIMARY KEY AUTOINCREMENT,
-                member_name TEXT NOT NULL UNIQUE
+                discord_id INTEGER PRIMARY KEY,
+                member_name TEXT NOT NULL
             )
         ''')
 
         c.execute('''
             CREATE TABLE IF NOT EXISTS suggestions (
-                suggestion_id INTEGER PRIMARY KEY AUTOINCREMENT,
-                stock_symbol TEXT NOT NULL UNIQUE
+                stock_symbol TEXT PRIMARY KEY
             )
         ''')
 
         c.execute('''
             CREATE TABLE IF NOT EXISTS members_suggestions (
-                member_id INTEGER,
-                suggestion_id INTEGER,
-                PRIMARY KEY (member_id, suggestion_id),
-                FOREIGN KEY (member_id) REFERENCES members(member_id),
-                FOREIGN KEY (suggestion_id) REFERENCES suggestions(suggestion_id)
+                discord_id INTEGER,
+                stock_symbol TEXT,
+                PRIMARY KEY (discord_id, stock_symbol),
+                FOREIGN KEY (discord_id) REFERENCES members(discord_id),
+                FOREIGN KEY (stock_symbol) REFERENCES suggestions(stock_symbol)
             )
         ''')
 
