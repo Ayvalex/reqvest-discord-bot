@@ -32,24 +32,6 @@ def init_db():
 
         conn.commit()
 
-def get_member_id(conn, member_name):
-    c = conn.cursor()
-    c.execute('SELECT member_id FROM members WHERE member_name = ?', (member_name,))
-    row = c.fetchone()
-    if row:
-        return row[0]
-    c.execute('INSERT INTO members (member_name) VALUES (?)', (member_name,))
-    return c.lastrowid
-
-def get_suggestion_id(conn, stock_symbol):
-    c = conn.cursor()
-    c.execute('SELECT suggestion_id FROM suggestions WHERE stock_symbol = ?', (stock_symbol,))
-    row = c.fetchone()
-    if row:
-        return row[0]
-    c.execute('INSERT INTO suggestions (stock_symbol) VALUES (?)', (stock_symbol,))
-    return c.lastrowid
-
 def add_suggestions(member_name, stock_symbols):
     with sqlite3.connect(DB_FILE) as conn:
         c = conn.cursor()
