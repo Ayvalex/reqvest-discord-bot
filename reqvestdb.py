@@ -32,28 +32,38 @@ def init_db():
 
         conn.commit()
 
-def add_suggestions(member_name, stock_symbols):
+def add_suggestions(discord_id, stock_symbols, member_name="Unknown"):
     with sqlite3.connect(DB_FILE) as conn:
         c = conn.cursor()
-        member_id = get_member_id(conn, member_name)
+
+        c.execute('''
+            INSERT OR IGNORE INTO members (discord_id, member_name)
+            VALUES (?, ?)
+        ''', (discord_id, member_name))
+
         for symbol in stock_symbols:
-            suggestion_id = get_suggestion_id(conn, symbol)
+            c.execute('''
+                INSERT OR IGNORE INTO suggestions (stock_symbol)
+                VALUES (?)
+            ''', (symbol,))
+
             try:
                 c.execute('''
-                    INSERT INTO members_suggestions (member_id, suggestion_id)
+                    INSERT INTO members_suggestions (discord_id, stock_symbol)
                     VALUES (?, ?)
-                ''', (member_id, suggestion_id))
+                ''', (discord_id, symbol))
             except sqlite3.IntegrityError:
                 pass  
+
         conn.commit()
 
 def tally_suggestions():
     with sqlite3.connect(DB_FILE) as conn:
         c = conn.cursor()
         c.execute('''
-            SELECT s.stock_symbol, COUNT(ms.member_id) AS votes
+            SELECT s.stock_symbol, COUNT(ms.discord_id) AS votes
             FROM suggestions s
-            JOIN members_suggestions ms ON s.suggestion_id = ms.suggestion_id
+            JOIN members_suggestions ms ON s.stock_symbol = ms.stock_symbol
             GROUP BY s.stock_symbol
             ORDER BY votes DESC
         ''')
@@ -63,6 +73,6 @@ def reset_suggestions():
     with sqlite3.connect(DB_FILE) as conn:
         c = conn.cursor()
         c.execute('DELETE FROM members_suggestions')
-        c.execute('DELETE FROM members')
         c.execute('DELETE FROM suggestions')
+        c.execute('DELETE FROM members')
         conn.commit()
