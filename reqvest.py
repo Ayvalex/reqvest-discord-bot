@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 import os
 import logging
 from reqvestdb import init_db, add_suggestions, tally_suggestions
+import json
 
 load_dotenv()
 token = os.getenv('DISCORD_TOKEN')
@@ -19,6 +20,27 @@ intents.message_content = True
 intents.members = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
+
+with open("company_tickers.json", "r") as f:
+    raw_data = json.load(f)
+
+transformed = [
+    {"symbol": entry["ticker"], "name": entry["title"].title()}
+    for entry in raw_data.values()
+    if "ticker" in entry and "title" in entry
+]
+
+with open("tickers_cleaned.json", "w") as f:
+    json.dump(transformed, f, indent=2)
+
+with open("tickers_cleaned.json", "r") as f:
+    ticker_data = json.load(f)
+
+print(f"Transformed {len(transformed)} records.")
+
+symbol_set = {entry["symbol"].upper() for entry in ticker_data}
+name_to_symbol = {entry["name"]: entry["symbol"] for entry in ticker_data}
+company_names = list(name_to_symbol.keys())
 
 @bot.event
 async def on_ready():
@@ -55,3 +77,5 @@ async def tally(ctx):
     await ctx.send("\n".join(result_lines))
 
 bot.run(token)
+
+
