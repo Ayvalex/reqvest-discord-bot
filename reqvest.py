@@ -5,6 +5,7 @@ import os
 import logging
 from reqvestdb import init_db, add_suggestions, tally_suggestions
 import json
+from rapidfuzz import process, fuzz
 
 load_dotenv()
 token = os.getenv('DISCORD_TOKEN')
@@ -42,6 +43,18 @@ symbol_set = {entry["symbol"].upper() for entry in ticker_data}
 name_to_symbol = {entry["name"]: entry["symbol"] for entry in ticker_data}
 company_names = list(name_to_symbol.keys())
 
+def resolve_to_symbol(user_input, confidence_threshold=85):
+    query = user_input.strip().upper()
+
+    if query in symbol_set:
+        return query 
+
+    match = process.extractOne(user_input.strip(), company_names, scorer=fuzz.token_sort_ratio)
+    if match and match[1] >= confidence_threshold:
+        return name_to_symbol[match[0]]
+
+    return None 
+
 @bot.event
 async def on_ready():
     logger.info(f"Bot connected as {bot.user}")
@@ -55,7 +68,11 @@ async def on_message(message):
     await bot.process_commands(message)
 
 @bot.command()
-async def suggest(ctx, *, message):
+async def suggest(ctx, *, message=""):
+    if not message:
+        await ctx.send("Please provide at least one stock symbol.")
+        return
+    
     stock_input = message.upper().replace(' ', '')
     stock_list = list(set(stock_input.split(',')))
 
@@ -63,19 +80,38 @@ async def suggest(ctx, *, message):
         await ctx.send("Please provide at least one stock symbol.")
         return
 
-    add_suggestions(str(ctx.author.id), stock_list)
-    await ctx.send(f"Suggestions received: {', '.join(stock_list)}")
+    member_name = str(ctx.author.name)
 
-@bot.command()
-async def tally(ctx):
-    tally_result = tally_suggestions()
-    if not tally_result:
-        await ctx.send("No suggestions this week.")
+    checked_stock_list = []
+    for suggestion in stock_list:
+        result = resolve_to_symbol(suggestion)
+        if result is not None:
+            checked_stock_list.append(result)
+
+    if not checked_stock_list:
+        await ctx.send("None of your suggestions were recognized as valid tickers.")
         return
 
-    result_lines = [f"**{symbol}**: {count} vote(s)" for symbol, count in tally_result]
-    await ctx.send("\n".join(result_lines))
+    try:
+        add_suggestions(member_name, checked_stock_list)
+        await ctx.send(f"Suggestions received: {', '.join(checked_stock_list)}")
+    except Exception as e:
+        await ctx.send("There was an error saving your suggestion.")
+        print(e)
 
-bot.run(token)
+@bot.command()
+@commands.has_permissions(administrator=True)
+async def tally(ctx):
+    try:
+        tally_result = tally_suggestions()
+        if not tally_result:
+            await ctx.send("No suggestions submitted yet.")
+            return
+
+        result_lines = [f"**{symbol}**: {count} vote(s)" for symbol, count in tally_result]
+        await ctx.send("\n".join(result_lines))
+    except Exception as e:
+        await ctx.send("Could not tally suggestions.")
+        print(e)
 
 
