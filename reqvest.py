@@ -7,6 +7,7 @@ from reqvestdb import init_db, add_suggestions, tally_suggestions
 import json
 from rapidfuzz import process, fuzz
 import re
+from collections import defaultdict
 
 load_dotenv()
 token = os.getenv('DISCORD_TOKEN')
@@ -22,19 +23,25 @@ intents.message_content = True
 intents.members = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
+user_states = {}
 
 with open("company_tickers.json", "r") as f:
     raw_data = json.load(f)
 
 def clean_company_name(name):
     name = re.sub(r"(\\|/|,|\bCORP\b|\bCORPORATION|\bINC\b|\bLTD\b|\bLLC\b|\bCOM\b|\bAG\b|\b(?:[A-Z]\.){2,}).*", "", name, flags=re.IGNORECASE)
+
     return name.strip().upper()
 
-transformed = [
-    {"symbol": entry["ticker"], "name": clean_company_name(entry["title"])}
-    for entry in raw_data.values()
-    if "ticker" in entry and "title" in entry
-]
+company_map = defaultdict(list)
+
+for entry in raw_data.values():
+    if "ticker" in entry and "title" in entry:
+        name = clean_company_name(entry["title"])
+        ticker = entry["ticker"].upper()
+        company_map[name].append(ticker)
+
+transformed = [{"name": name, "tickers": sorted(tickers)} for name, tickers in company_map.items()]
 
 with open("tickers_cleaned.json", "w") as f:
     json.dump(transformed, f, indent=2)
