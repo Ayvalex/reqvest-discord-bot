@@ -6,6 +6,7 @@ import logging
 from reqvestdb import init_db, add_suggestions, tally_suggestions
 import json
 from rapidfuzz import process, fuzz
+import re
 
 load_dotenv()
 token = os.getenv('DISCORD_TOKEN')
@@ -25,8 +26,12 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 with open("company_tickers.json", "r") as f:
     raw_data = json.load(f)
 
+def clean_company_name(name):
+    name = re.sub(r"(\\|/|,|\bCORP\b|\bCORPORATION|\bINC\b|\bLTD\b|\bLLC\b|\bCOM\b|\bAG\b|\b(?:[A-Z]\.){2,}).*", "", name, flags=re.IGNORECASE)
+    return name.strip().upper()
+
 transformed = [
-    {"symbol": entry["ticker"], "name": entry["title"].title()}
+    {"symbol": entry["ticker"], "name": clean_company_name(entry["title"])}
     for entry in raw_data.values()
     if "ticker" in entry and "title" in entry
 ]
@@ -37,17 +42,15 @@ with open("tickers_cleaned.json", "w") as f:
 with open("tickers_cleaned.json", "r") as f:
     ticker_data = json.load(f)
 
-print(f"Transformed {len(transformed)} records.")
-
 symbol_set = {entry["symbol"].upper() for entry in ticker_data}
-name_to_symbol = {entry["name"]: entry["symbol"] for entry in ticker_data}
+name_to_symbol = {entry["name"].upper(): entry["symbol"] for entry in ticker_data}
 company_names = list(name_to_symbol.keys())
 
-def resolve_to_symbol(user_input, confidence_threshold=85):
+def resolve_to_symbol(user_input, confidence_threshold=75):
     query = user_input.strip().upper()
 
     if query in symbol_set:
-        return query 
+        return query  
 
     match = process.extractOne(user_input.strip(), company_names, scorer=fuzz.token_sort_ratio)
     if match and match[1] >= confidence_threshold:
@@ -57,15 +60,8 @@ def resolve_to_symbol(user_input, confidence_threshold=85):
 
 @bot.event
 async def on_ready():
-    logger.info(f"Bot connected as {bot.user}")
+    print(f'Logged in as {bot.user}')
     init_db()
-
-@bot.event
-async def on_message(message):
-    if message.author.bot:
-        return
-    logger.info(f"Received message from {message.author}: {message.content}")
-    await bot.process_commands(message)
 
 @bot.command()
 async def suggest(ctx, *, message=""):
@@ -100,7 +96,6 @@ async def suggest(ctx, *, message=""):
         print(e)
 
 @bot.command()
-@commands.has_permissions(administrator=True)
 async def tally(ctx):
     try:
         tally_result = tally_suggestions()
@@ -114,4 +109,4 @@ async def tally(ctx):
         await ctx.send("Could not tally suggestions.")
         print(e)
 
-
+bot.run(token)
