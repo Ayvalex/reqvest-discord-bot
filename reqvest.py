@@ -49,21 +49,27 @@ with open("tickers_cleaned.json", "w") as f:
 with open("tickers_cleaned.json", "r") as f:
     ticker_data = json.load(f)
 
-symbol_set = {entry["symbol"].upper() for entry in ticker_data}
-name_to_symbol = {entry["name"].upper(): entry["symbol"] for entry in ticker_data}
-company_names = list(name_to_symbol.keys())
+#symbol_set = {entry["symbol"].upper() for entry in ticker_data}
+company_lookup = {entry["name"].lower(): entry["tickers"] for entry in ticker_data}
+#company_names = list(name_to_symbol.keys())
 
-def resolve_to_symbol(user_input, confidence_threshold=75):
-    query = user_input.strip().upper()
+""" company_lookup = {
+    "alphabet": ["GOOG", "GOOGL"],
+    "berkshire": ["BRK.A", "BRK.B"],
+    "microsoft": ["MSFT"]
+}
 
-    if query in symbol_set:
-        return query  
 
-    match = process.extractOne(user_input.strip(), company_names, scorer=fuzz.token_sort_ratio)
-    if match and match[1] >= confidence_threshold:
-        return name_to_symbol[match[0]]
-
-    return None 
+user_states = {
+    1234567890: {  # User ID
+        "awaiting": {
+            "alphabet": ["GOOG", "GOOGL"],
+            "berkshire": ["BRK.A", "BRK.B"]
+        },
+        "confirmed": [],
+        "current_term": "alphabet"
+    }
+} """
 
 @bot.event
 async def on_ready():
@@ -71,37 +77,36 @@ async def on_ready():
     init_db()
 
 @bot.command()
-async def suggest(ctx, *, message=""):
-    if not message:
-        await ctx.send("Please provide at least one stock symbol.")
-        return
+async def suggest(ctx, *, message):
+    user_id = ctx.author.id
+    terms = [term.strip().lower() for term in message.split(',')]
     
-    stock_input = message.upper().replace(' ', '')
-    stock_list = list(set(stock_input.split(',')))
+    awaiting = {}
+    confirmed = []
 
-    if not stock_list:
-        await ctx.send("Please provide at least one stock symbol.")
-        return
+    for term in terms:
+        tickers = company_lookup.get(term)
+        if tickers:
+            if len(tickers) == 1:
+                confirmed.append(tickers[0])
+            else:
+                awaiting[term] = tickers
+        else:
+            await ctx.send(f"No match found for '{term}'.")
 
-    member_name = str(ctx.author.name)
-
-    checked_stock_list = []
-    for suggestion in stock_list:
-        result = resolve_to_symbol(suggestion)
-        if result is not None:
-            checked_stock_list.append(result)
-
-    if not checked_stock_list:
-        await ctx.send("None of your suggestions were recognized as valid tickers.")
-        return
-
-    try:
-        add_suggestions(member_name, checked_stock_list)
-        await ctx.send(f"Suggestions received: {', '.join(checked_stock_list)}")
-    except Exception as e:
-        await ctx.send("There was an error saving your suggestion.")
-        print(e)
-
+    if awaiting:
+        user_states[user_id] = {
+            "awaiting": awaiting,
+            "confirmed": confirmed,
+            "current_term": list(awaiting.keys())[0]
+        }
+        current = user_states[user_id]["current_term"]
+        options = user_states[user_id]["awaiting"][current]
+        msg = f"Multiple tickers found for **{current}**:\n" + "\n".join(f"{i+1}. {t}" for i, t in enumerate(options))
+        await ctx.send(msg)
+    else:
+        await ctx.send(f"Suggestions received: {', '.join(confirmed)}")
+        
 @bot.command()
 async def tally(ctx):
     try:
