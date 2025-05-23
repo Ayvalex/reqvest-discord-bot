@@ -76,6 +76,39 @@ async def on_ready():
     print(f'Logged in as {bot.user}')
     init_db()
 
+@bot.event
+async def on_message(message):
+    await bot.process_commands(message) 
+    user_id = message.author.id
+    if message.author.bot:
+        return
+
+    if user_id in user_states:
+        state = user_states[user_id]
+        current = state["current_term"]
+        options = state["awaiting"][current]
+
+        try:
+            choice = int(message.content.strip()) - 1
+            if 0 <= choice < len(options):
+                selected = options[choice]
+                state["confirmed"].append(selected)
+                del state["awaiting"][current]
+
+                if state["awaiting"]:
+                    state["current_term"] = list(state["awaiting"].keys())[0]
+                    next_term = state["current_term"]
+                    next_options = state["awaiting"][next_term]
+                    msg = f"Choose for **{next_term}**:\n" + "\n".join(f"{i+1}. {t}" for i, t in enumerate(next_options))
+                    await message.channel.send(msg)
+                else:
+                    await message.channel.send(f"Suggestions received: {', '.join(state['confirmed'])}")
+                    del user_states[user_id]
+            else:
+                await message.channel.send("Invalid selection.")
+        except ValueError:
+            await message.channel.send("Please enter the number of your choice.")
+
 @bot.command()
 async def suggest(ctx, *, message):
     user_id = ctx.author.id
@@ -106,7 +139,7 @@ async def suggest(ctx, *, message):
         await ctx.send(msg)
     else:
         await ctx.send(f"Suggestions received: {', '.join(confirmed)}")
-        
+
 @bot.command()
 async def tally(ctx):
     try:
