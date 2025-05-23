@@ -3,7 +3,7 @@ from discord.ext import commands
 from dotenv import load_dotenv
 import os
 import logging
-from reqvestdb import init_db, add_suggestions, tally_suggestions
+from reqvestdb import init_db, add_suggestions, tally_suggestions, reset_suggestions
 import json
 from rapidfuzz import process, fuzz
 import re
@@ -49,18 +49,6 @@ with open("tickers_cleaned.json", "w") as f:
 with open("tickers_cleaned.json", "r") as f:
     ticker_data = json.load(f)
 
-""" 
-user_states = {
-    1234567890: {  # User ID
-        "awaiting": {
-            "alphabet": ["GOOG", "GOOGL"],
-            "berkshire": ["BRK.A", "BRK.B"]
-        },
-        "confirmed": [],
-        "current_term": "alphabet"
-    }
-} """
-
 ticker_to_company = {}
 for entry in ticker_data:
     for ticker in entry["tickers"]:
@@ -75,7 +63,8 @@ async def on_ready():
 
 @bot.event
 async def on_message(message):
-    await bot.process_commands(message) 
+    await bot.process_commands(message)  
+
     user_id = message.author.id
     if message.author.bot:
         return
@@ -100,6 +89,7 @@ async def on_message(message):
                     await message.channel.send(msg)
                 else:
                     await message.channel.send(f"Suggestions received: {', '.join(state['confirmed'])}")
+                    add_suggestions(user_id, state["confirmed"], message.author.display_name)
                     del user_states[user_id]
             else:
                 await message.channel.send("Invalid selection.")
@@ -158,10 +148,15 @@ async def tally(ctx):
             await ctx.send("No suggestions submitted yet.")
             return
 
-        result_lines = [f"**{symbol}**: {count} vote(s)" for symbol, count in tally_result]
+        result_lines = [f"**{symbol}**: {count}" for symbol, count in tally_result]
         await ctx.send("\n".join(result_lines))
     except Exception as e:
         await ctx.send("Could not tally suggestions.")
         print(e)
+
+@bot.command()
+async def reset(ctx):
+    reset_suggestions()
+    await ctx.send("Votes reset.")
 
 bot.run(token)
