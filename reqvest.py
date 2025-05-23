@@ -49,17 +49,7 @@ with open("tickers_cleaned.json", "w") as f:
 with open("tickers_cleaned.json", "r") as f:
     ticker_data = json.load(f)
 
-#symbol_set = {entry["symbol"].upper() for entry in ticker_data}
-company_lookup = {entry["name"].lower(): entry["tickers"] for entry in ticker_data}
-#company_names = list(name_to_symbol.keys())
-
-""" company_lookup = {
-    "alphabet": ["GOOG", "GOOGL"],
-    "berkshire": ["BRK.A", "BRK.B"],
-    "microsoft": ["MSFT"]
-}
-
-
+""" 
 user_states = {
     1234567890: {  # User ID
         "awaiting": {
@@ -70,6 +60,13 @@ user_states = {
         "current_term": "alphabet"
     }
 } """
+
+ticker_to_company = {}
+for entry in ticker_data:
+    for ticker in entry["tickers"]:
+        ticker_to_company[ticker] = entry["name"]
+
+company_lookup = {entry["name"]: entry["tickers"] for entry in ticker_data}
 
 @bot.event
 async def on_ready():
