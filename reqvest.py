@@ -109,20 +109,32 @@ async def on_message(message):
 @bot.command()
 async def suggest(ctx, *, message):
     user_id = ctx.author.id
-    terms = [term.strip().lower() for term in message.split(',')]
+    terms = [term.strip().upper() for term in message.split(',')]
     
     awaiting = {}
     confirmed = []
 
     for term in terms:
-        tickers = company_lookup.get(term)
-        if tickers:
+        if term in ticker_to_company:
+            confirmed.append(term)
+
+        elif term in company_lookup:
+            tickers = company_lookup[term]
             if len(tickers) == 1:
                 confirmed.append(tickers[0])
             else:
                 awaiting[term] = tickers
+
         else:
-            await ctx.send(f"No match found for '{term}'.")
+            match, score, _ = process.extractOne(term, company_lookup.keys(), scorer=fuzz.ratio)
+            if score > 80:
+                tickers = company_lookup[match]
+                if len(tickers) == 1:
+                    confirmed.append(tickers[0])
+                else:
+                    awaiting[match] = tickers
+            else:
+                await ctx.send(f"No match found for '{term}'.")
 
     if awaiting:
         user_states[user_id] = {
@@ -136,6 +148,7 @@ async def suggest(ctx, *, message):
         await ctx.send(msg)
     else:
         await ctx.send(f"Suggestions received: {', '.join(confirmed)}")
+        add_suggestions(user_id, confirmed, member_name=ctx.author.display_name)
 
 @bot.command()
 async def tally(ctx):
