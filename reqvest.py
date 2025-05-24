@@ -33,36 +33,28 @@ bot = MyBot()
 
 user_states = {}
 
-with open("company_tickers.json", "r") as f:
-    raw_data = json.load(f)
-
 def clean_company_name(name):
-    name = re.sub(r"(\\|/|,|\bCORP\b|\bCORPORATION|\bINC\b|\bLTD\b|\bLLC\b|\bCOM\b|\bAG\b|\b(?:[A-Z]\.){2,}).*", "", name, flags=re.IGNORECASE)
+    pattern = r"(\\|/|,|\bCORP\b|\bCORPORATION|\bINC\b|\bLTD\b|\bLLC\b|\bCOM\b|\bAG\b|\b(?:[A-Z]\.){2,}).*"
+    return re.sub(pattern, "", name, flags=re.IGNORECASE).strip().upper()
 
-    return name.strip().upper()
+def build_company_data(filepath):
+    with open(filepath, "r") as f:
+        raw_data = json.load(f)
 
-company_map = defaultdict(list)
+    company_map = defaultdict(list)
+    
+    for entry in raw_data.values():
+        if "ticker" in entry and "title" in entry:
+            name = clean_company_name(entry["title"])
+            ticker = entry["ticker"].upper()
+            company_map[name].append(ticker)
 
-for entry in raw_data.values():
-    if "ticker" in entry and "title" in entry:
-        name = clean_company_name(entry["title"])
-        ticker = entry["ticker"].upper()
-        company_map[name].append(ticker)
+    company_to_ticker = {name: sorted(tickers) for name, tickers in company_map.items()}
+    ticker_to_company = {ticker: name for name, tickers in company_to_ticker.items() for ticker in tickers}
 
-transformed = [{"name": name, "tickers": sorted(tickers)} for name, tickers in company_map.items()]
+    return company_to_ticker, ticker_to_company
 
-with open("tickers_cleaned.json", "w") as f:
-    json.dump(transformed, f, indent=2)
-
-with open("tickers_cleaned.json", "r") as f:
-    ticker_data = json.load(f)
-
-ticker_to_company = {}
-for entry in ticker_data:
-    for ticker in entry["tickers"]:
-        ticker_to_company[ticker] = entry["name"]
-
-company_lookup = {entry["name"]: entry["tickers"] for entry in ticker_data}
+company_to_ticker, ticker_to_company = build_company_data("company_tickers.json")
 
 @bot.event
 async def on_ready():
