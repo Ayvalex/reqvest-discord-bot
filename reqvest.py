@@ -18,11 +18,19 @@ logging.basicConfig(
 )
 logger = logging.getLogger('reqvest_bot')
 
-intents = discord.Intents.default()
-intents.message_content = True
-intents.members = True
+class MyBot(commands.Bot):
+    def __init__(self):
+        intents = discord.Intents.default()
+        intents.message_content = True
+        intents.members = True
 
-bot = commands.Bot(command_prefix="!", intents=intents)
+        super().__init__(command_prefix="!", intents=intents)
+
+    async def setup_hook(self):
+        await self.tree.sync()
+
+bot = MyBot()
+
 user_states = {}
 
 with open("company_tickers.json", "r") as f:
