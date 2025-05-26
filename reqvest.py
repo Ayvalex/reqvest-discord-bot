@@ -122,6 +122,17 @@ def process_suggestions(suggestions):
 
     return confirmed, awaiting
 
+async def prompt_next_suggestion(target, user_id):
+    state = user_states[user_id]
+    suggestion = state["current_term"]
+    options = state["awaiting"][suggestion]
+    msg = f"Multiple tickers found for {suggestion}:\n" + "\n".join(f"{i+1}. {t}" for i, t in enumerate(options))
+
+    if isinstance(target, discord.Interaction):
+        await target.response.send_message(msg)
+    else:
+        await target.send(msg)
+
 @bot.command()
 async def suggest(ctx, *, message):
     user_id = ctx.author.id
