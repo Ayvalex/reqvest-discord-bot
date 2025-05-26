@@ -96,6 +96,32 @@ async def on_message(message):
         except ValueError:
             await message.channel.send("Please enter the number of your choice.")
 
+def process_suggestions(suggestions):
+    confirmed = []
+    awaiting = {}
+
+    for suggestion in suggestions:
+        if suggestion in ticker_to_company:
+            confirmed.append(suggestion)
+        elif suggestion in company_to_ticker:
+            tickers = company_to_ticker[suggestion]
+            if len(tickers) == 1:
+                confirmed.append(tickers[0])
+            else:
+                awaiting[suggestion] = tickers
+        else:
+            match, score, _ = process.extractOne(suggestion, company_to_ticker.keys(), scorer=fuzz.ratio)
+            if score > 80:
+                tickers = company_to_ticker[match]
+                if len(tickers) == 1:
+                    confirmed.append(tickers[0])
+                else:
+                    awaiting[match] = tickers
+            else:
+                confirmed.append(f"[NO MATCH: {suggestion}]")
+
+    return confirmed, awaiting
+
 @bot.command()
 async def suggest(ctx, *, message):
     user_id = ctx.author.id
