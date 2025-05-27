@@ -58,16 +58,14 @@ company_to_ticker, ticker_to_company = build_company_data("company_tickers.json"
 
 @bot.event
 async def on_ready():
-    print(f'Logged in as {bot.user}')
-    init_db()
+    pass
 
 @bot.event
-async def on_message(message):
-    await bot.process_commands(message)  
-
-    user_id = message.author.id
+async def on_message(message: discord.Message):
     if message.author.bot:
         return
+    
+    user_id = message.author.id
 
     if user_id in user_states:
         state = user_states[user_id]
@@ -82,19 +80,18 @@ async def on_message(message):
                 del state["awaiting"][current]
 
                 if state["awaiting"]:
-                    state["current_term"] = list(state["awaiting"].keys())[0]
-                    next_term = state["current_term"]
-                    next_options = state["awaiting"][next_term]
-                    msg = f"Choose for **{next_term}**:\n" + "\n".join(f"{i+1}. {t}" for i, t in enumerate(next_options))
-                    await message.channel.send(msg)
+                    state["current_term"] = next(iter(state["awaiting"]))
+                    await prompt_next_suggestion(message.channel, user_id)
                 else:
                     await message.channel.send(f"Suggestions received: {', '.join(state['confirmed'])}")
-                    add_suggestions(user_id, state["confirmed"], message.author.display_name)
+                    #add_suggestions(user_id, state["confirmed"], message.author.display_name)
                     del user_states[user_id]
             else:
                 await message.channel.send("Invalid selection.")
         except ValueError:
             await message.channel.send("Please enter the number of your choice.")
+
+    await bot.process_commands(message)
 
 def process_suggestions(suggestions):
     confirmed = []
@@ -133,49 +130,28 @@ async def prompt_next_suggestion(target, user_id):
     else:
         await target.send(msg)
 
-@bot.command()
-async def suggest(ctx, *, message):
+@bot.command(name="suggest", help="Suggest one or more stocks by name or ticker (comma separated, e.g. Apple, TSLA, Nvidia)")
+async def suggest(ctx, *, stocks: str):
+    # Rare case where user suggests the same stock twice in one suggestion. Maybe look at it later. Not important right now. 
+    suggestions = [s.strip().upper() for s in stocks.split(",")]
+
+    if not suggestions:
+        await ctx.send("No valid stock name or ticker found. Please use commas to separate suggestions.")
+        return
+
     user_id = ctx.author.id
-    terms = [term.strip().upper() for term in message.split(',')]
-    
-    awaiting = {}
-    confirmed = []
-
-    for term in terms:
-        if term in ticker_to_company:
-            confirmed.append(term)
-
-        elif term in company_lookup:
-            tickers = company_lookup[term]
-            if len(tickers) == 1:
-                confirmed.append(tickers[0])
-            else:
-                awaiting[term] = tickers
-
-        else:
-            match, score, _ = process.extractOne(term, company_lookup.keys(), scorer=fuzz.ratio)
-            if score > 80:
-                tickers = company_lookup[match]
-                if len(tickers) == 1:
-                    confirmed.append(tickers[0])
-                else:
-                    awaiting[match] = tickers
-            else:
-                await ctx.send(f"No match found for '{term}'.")
+    confirmed, awaiting = process_suggestions(suggestions)
 
     if awaiting:
         user_states[user_id] = {
             "awaiting": awaiting,
             "confirmed": confirmed,
-            "current_term": list(awaiting.keys())[0]
+            "current_term": next(iter(awaiting))
         }
-        current = user_states[user_id]["current_term"]
-        options = user_states[user_id]["awaiting"][current]
-        msg = f"Multiple tickers found for **{current}**:\n" + "\n".join(f"{i+1}. {t}" for i, t in enumerate(options))
-        await ctx.send(msg)
+        await prompt_next_suggestion(ctx, user_id)
     else:
-        await ctx.send(f"Suggestions received: {', '.join(confirmed)}")
-        add_suggestions(user_id, confirmed, member_name=ctx.author.display_name)
+        await ctx.send(f"Got your suggestions: {', '.join(suggestions)}")
+        # add_suggestions(user_id, confirmed, ctx.author.display_name)
 
 @bot.command()
 async def tally(ctx):
