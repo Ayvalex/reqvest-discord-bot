@@ -32,6 +32,8 @@ class MyBot(commands.Bot):
 
 bot = MyBot()
 
+user_states = {}
+
 class TickerSelect(Select):
     def __init__(self, options, user_id, state):
         super().__init__(placeholder="Choose a ticker", min_values=1, max_values=1, 
@@ -56,7 +58,10 @@ class TickerSelect(Select):
             )
             del user_states[self.user_id]
 
-user_states = {}
+class TickerView(View):
+    def __init__(self, user_id, state):
+        super().__init__()
+        self.add_item(TickerSelect(state["awaiting"][state["current_term"]], user_id, state))
 
 def clean_company_name(name):
     pattern = r"(\\|/|,|\bCORP\b|\bCORPORATION|\bINC\b|\bLTD\b|\bLLC\b|\bCOM\b|\bAG\b|\b(?:[A-Z]\.){2,}).*"
