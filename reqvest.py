@@ -8,6 +8,7 @@ import json
 from rapidfuzz import process, fuzz
 import re
 from collections import defaultdict
+from discord.ui import View, Select
 
 load_dotenv()
 token = os.getenv('DISCORD_TOKEN')
@@ -30,6 +31,30 @@ class MyBot(commands.Bot):
         await self.tree.sync()
 
 bot = MyBot()
+
+class TickerSelect(Select):
+    def __init__(self, options, user_id, state):
+        super().__init__(placeholder="Choose a ticker", min_values=1, max_values=1, 
+                         options=[discord.SelectOption(label=o) for o in options])
+        self.user_id = user_id
+        self.state = state
+
+    async def callback(self, interaction: discord.Interaction):
+        selected = self.values[0]
+        self.state["confirmed"].append(selected)
+        del self.state["awaiting"][self.state["current_term"]]
+
+        if self.state["awaiting"]:
+            self.state["current_term"] = next(iter(self.state["awaiting"]))
+            await interaction.response.send_message(
+                f"Multiple tickers found for {self.state['current_term']}:",
+                view=TickerView(self.user_id, self.state)
+            )
+        else:
+            await interaction.response.send_message(
+                f"Suggestions received: {', '.join(self.state['confirmed'])}"
+            )
+            del user_states[self.user_id]
 
 user_states = {}
 
