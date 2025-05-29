@@ -10,34 +10,28 @@ class Database:
         )
         self.cur = self.conn.cursor()
 
-def init_db():
-    with sqlite3.connect(DB_FILE) as conn:
-        c = conn.cursor()
-
-        c.execute('''
+    def create_tables(self):
+        self.cur.execute('''
             CREATE TABLE IF NOT EXISTS members (
-                discord_id INTEGER PRIMARY KEY,
+                discord_id BIGINT PRIMARY KEY,
                 member_name TEXT NOT NULL
             )
         ''')
-
-        c.execute('''
-            CREATE TABLE IF NOT EXISTS suggestions (
-                stock_symbol TEXT PRIMARY KEY
+        self.cur.execute('''
+            CREATE TABLE IF NOT EXISTS requests (
+                ticker TEXT PRIMARY KEY
             )
         ''')
-
-        c.execute('''
-            CREATE TABLE IF NOT EXISTS members_suggestions (
-                discord_id INTEGER,
-                stock_symbol TEXT,
-                PRIMARY KEY (discord_id, stock_symbol),
-                FOREIGN KEY (discord_id) REFERENCES members(discord_id),
-                FOREIGN KEY (stock_symbol) REFERENCES suggestions(stock_symbol)
+        self.cur.execute('''
+            CREATE TABLE IF NOT EXISTS members_requests (
+                discord_id BIGINT,
+                ticker TEXT,
+                PRIMARY KEY (discord_id, ticker),
+                FOREIGN KEY (discord_id) REFERENCES members(discord_id) ON DELETE CASCADE,
+                FOREIGN KEY (ticker) REFERENCES requests(ticker) ON DELETE CASCADE
             )
         ''')
-
-        conn.commit()
+        self.conn.commit()
 
 def add_suggestions(discord_id, stock_symbols, member_name="Unknown"):
     with sqlite3.connect(DB_FILE) as conn:
