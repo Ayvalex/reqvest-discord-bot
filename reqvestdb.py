@@ -1,7 +1,14 @@
-import sqlite3
-from datetime import datetime
+import psycopg2
 
-DB_FILE = "suggestions.db"
+class Database:
+    def __init__(self, host, database, user, password):
+        self.conn = psycopg2.connect(
+            host= host,        
+            database=database,   
+            user=user,          
+            password=password   
+        )
+        self.cur = self.conn.cursor()
 
 def init_db():
     with sqlite3.connect(DB_FILE) as conn:
