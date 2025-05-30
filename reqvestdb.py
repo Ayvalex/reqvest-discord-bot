@@ -50,30 +50,19 @@ class Database:
             """, (ticker.upper(),))
         self.conn.commit()
 
-def add_suggestions(discord_id, stock_symbols, member_name="Unknown"):
-    with sqlite3.connect(DB_FILE) as conn:
-        c = conn.cursor()
+    def _link_member_to_requests(self, discord_id, tickers):
+        for ticker in tickers:
+            self.cur.execute("""
+                INSERT INTO members_requests (discord_id, ticker)
+                VALUES (%s, %s)
+                ON CONFLICT DO NOTHING;""", (discord_id, ticker.upper()))
+            
+        self.conn.commit()
 
-        c.execute('''
-            INSERT OR IGNORE INTO members (discord_id, member_name)
-            VALUES (?, ?)
-        ''', (discord_id, member_name))
-
-        for symbol in stock_symbols:
-            c.execute('''
-                INSERT OR IGNORE INTO suggestions (stock_symbol)
-                VALUES (?)
-            ''', (symbol,))
-
-            try:
-                c.execute('''
-                    INSERT INTO members_suggestions (discord_id, stock_symbol)
-                    VALUES (?, ?)
-                ''', (discord_id, symbol))
-            except sqlite3.IntegrityError:
-                pass  
-
-        conn.commit()
+    def add_member_requests(self, discord_id, tickers, member_name):
+        self._add_member(discord_id, member_name)
+        self._add_requests(tickers)
+        self._link_member_to_requests(discord_id, tickers)
 
 def tally_suggestions():
     with sqlite3.connect(DB_FILE) as conn:
