@@ -64,22 +64,15 @@ class Database:
         self._add_requests(tickers)
         self._link_member_to_requests(discord_id, tickers)
 
-def tally_suggestions():
-    with sqlite3.connect(DB_FILE) as conn:
-        c = conn.cursor()
-        c.execute('''
-            SELECT s.stock_symbol, COUNT(ms.discord_id) AS votes
-            FROM suggestions s
-            JOIN members_suggestions ms ON s.stock_symbol = ms.stock_symbol
-            GROUP BY s.stock_symbol
+    def requests_count(self):
+        self.cur.execute("""
+            SELECT ticker, COUNT(*) as votes
+            FROM members_requests
+            GROUP BY ticker
             ORDER BY votes DESC
-        ''')
-        return c.fetchall()
+        """)
+        return self.cur.fetchall()
 
-def reset_suggestions():
-    with sqlite3.connect(DB_FILE) as conn:
-        c = conn.cursor()
-        c.execute('DELETE FROM members_suggestions')
-        c.execute('DELETE FROM suggestions')
-        c.execute('DELETE FROM members')
-        conn.commit()
+    def reset_all_data(self):
+        self.cur.execute("TRUNCATE members, requests CASCADE")
+        self.conn.commit()
