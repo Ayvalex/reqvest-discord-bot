@@ -33,6 +33,23 @@ class Database:
         ''')
         self.conn.commit()
 
+    def _add_member(self, discord_id, member_name):
+        self.cur.execute("""
+            INSERT INTO members (discord_id, member_name)
+            VALUES (%s, %s)
+            ON CONFLICT (discord_id) DO NOTHING
+        """, (discord_id, member_name))
+        self.conn.commit()
+
+    def _add_requests(self, tickers):
+        for ticker in tickers:
+            self.cur.execute("""
+                INSERT INTO requests (ticker)
+                VALUES (%s)
+                ON CONFLICT DO NOTHING
+            """, (ticker.upper(),))
+        self.conn.commit()
+
 def add_suggestions(discord_id, stock_symbols, member_name="Unknown"):
     with sqlite3.connect(DB_FILE) as conn:
         c = conn.cursor()
