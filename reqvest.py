@@ -27,7 +27,18 @@ class MyBot(commands.Bot):
 
         super().__init__(command_prefix="!", intents=intents)
 
+        self.db = None
+
     async def setup_hook(self):
+        from reqvestdb import Database
+        
+        host=os.getenv("DB_HOST")
+        database=os.getenv("DB_NAME")
+        user=os.getenv("DB_USER")
+        password=os.getenv("DB_PASSWORD")
+
+        self.db = Database(host, database, user, password)
+        self.db.create_tables()
         await self.tree.sync()
 
 bot = MyBot()
