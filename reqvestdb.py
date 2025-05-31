@@ -76,3 +76,7 @@ class Database:
     def reset_all_data(self):
         self.cur.execute("TRUNCATE members, requests CASCADE")
         self.conn.commit()
+
+    def close(self):
+        self.cur.close()
+        self.conn.close()
