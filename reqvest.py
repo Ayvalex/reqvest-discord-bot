@@ -3,7 +3,6 @@ from discord.ext import commands
 from dotenv import load_dotenv
 import os
 import logging
-from reqvestdb import init_db, add_suggestions, tally_suggestions, reset_suggestions
 import json
 from rapidfuzz import process, fuzz
 import re
@@ -100,39 +99,6 @@ company_to_ticker, ticker_to_company = build_company_data("company_tickers.json"
 @bot.event
 async def on_ready():
     pass
-
-@bot.event
-async def on_message(message: discord.Message):
-    if message.author.bot:
-        return
-    
-    user_id = message.author.id
-
-    if user_id in user_states:
-        state = user_states[user_id]
-        current = state["current_term"]
-        options = state["awaiting"][current]
-
-        try:
-            choice = int(message.content.strip()) - 1
-            if 0 <= choice < len(options):
-                selected = options[choice]
-                state["confirmed"].append(selected)
-                del state["awaiting"][current]
-
-                if state["awaiting"]:
-                    state["current_term"] = next(iter(state["awaiting"]))
-                    await prompt_next_suggestion(message.channel, user_id)
-                else:
-                    await message.channel.send(f"Suggestions received: {', '.join(state['confirmed'])}")
-                    #add_suggestions(user_id, state["confirmed"], message.author.display_name)
-                    del user_states[user_id]
-            else:
-                await message.channel.send("Invalid selection.")
-        except ValueError:
-            await message.channel.send("Please enter the number of your choice.")
-
-    await bot.process_commands(message)
 
 def process_suggestions(suggestions):
     confirmed = []
