@@ -127,17 +127,6 @@ def process_requests(requests):
 
     return confirmed, awaiting, no_matches
 
-async def prompt_next_suggestion(target, user_id):
-    state = user_states[user_id]
-    suggestion = state["current_term"]
-    options = state["awaiting"][suggestion]
-    msg = f"Multiple tickers found for {suggestion}:\n" + "\n".join(f"{i+1}. {t}" for i, t in enumerate(options))
-
-    if isinstance(target, discord.Interaction):
-        await target.response.send_message(msg)
-    else:
-        await target.send(msg)
-
 @bot.command(name="suggest", help="Suggest one or more stocks by name or ticker (comma separated, e.g. Apple, TSLA, Nvidia)")
 async def suggest(ctx, *, stocks: str):
     # Rare case where user suggests the same stock twice in one suggestion. Maybe look at it later. Not important right now. 
