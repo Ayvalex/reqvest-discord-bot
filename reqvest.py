@@ -100,21 +100,22 @@ company_to_ticker, ticker_to_company = build_company_data("company_tickers.json"
 async def on_ready():
     pass
 
-def process_suggestions(suggestions):
+def process_requests(requests):
     confirmed = []
     awaiting = {}
+    no_matches = []
 
-    for suggestion in suggestions:
-        if suggestion in ticker_to_company:
-            confirmed.append(suggestion)
-        elif suggestion in company_to_ticker:
-            tickers = company_to_ticker[suggestion]
+    for request in requests:
+        if request in ticker_to_company:
+            confirmed.append(request)
+        elif request in company_to_ticker:
+            tickers = company_to_ticker[request]
             if len(tickers) == 1:
                 confirmed.append(tickers[0])
             else:
-                awaiting[suggestion] = tickers
+                awaiting[request] = tickers
         else:
-            match, score, _ = process.extractOne(suggestion, company_to_ticker.keys(), scorer=fuzz.ratio)
+            match, score, _ = process.extractOne(request, company_to_ticker.keys(), scorer=fuzz.partial_ratio)
             if score > 80:
                 tickers = company_to_ticker[match]
                 if len(tickers) == 1:
@@ -122,9 +123,9 @@ def process_suggestions(suggestions):
                 else:
                     awaiting[match] = tickers
             else:
-                confirmed.append(f"[NO MATCH: {suggestion}]")
+                no_matches.append(request)
 
-    return confirmed, awaiting
+    return confirmed, awaiting, no_matches
 
 async def prompt_next_suggestion(target, user_id):
     state = user_states[user_id]
