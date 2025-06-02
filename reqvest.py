@@ -163,20 +163,20 @@ async def request(interaction: discord.Interaction, stocks: str):
     else:
         await interaction.response.send_message("\n".join(messages), ephemeral=True)
 
+@bot.tree.command(name="count", description="Show the count of all ticker requests.")
+async def count(interaction: discord.Interaction):
+    tally = bot.db.requests_count()  
 
-@bot.command()
-async def tally(ctx):
-    try:
-        tally_result = tally_suggestions()
-        if not tally_result:
-            await ctx.send("No suggestions submitted yet.")
-            return
+    if not tally:
+        await interaction.response.send_message("No requests have been made yet.")
+        return
 
-        result_lines = [f"**{symbol}**: {count}" for symbol, count in tally_result]
-        await ctx.send("\n".join(result_lines))
-    except Exception as e:
-        await ctx.send("Could not tally suggestions.")
-        print(e)
+    message_lines = [f"**Vote Counts Per Requested Ticker:**"]
+    for index, (ticker, count) in enumerate(tally, start=1):
+        message_lines.append(f"{index}. **{ticker}**: {count} vote{'s' if count != 1 else ''}")
+
+    message = "\n".join(message_lines)
+    await interaction.response.send_message(message)
 
 @bot.command()
 async def reset(ctx):
