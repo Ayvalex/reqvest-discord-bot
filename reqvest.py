@@ -1,4 +1,5 @@
 import discord
+from discord import app_commands
 from discord.ext import commands
 from dotenv import load_dotenv
 import os
@@ -127,28 +128,41 @@ def process_requests(requests):
 
     return confirmed, awaiting, no_matches
 
-@bot.command(name="suggest", help="Suggest one or more stocks by name or ticker (comma separated, e.g. Apple, TSLA, Nvidia)")
-async def suggest(ctx, *, stocks: str):
-    # Rare case where user suggests the same stock twice in one suggestion. Maybe look at it later. Not important right now. 
-    suggestions = [s.strip().upper() for s in stocks.split(",")]
-
-    if not suggestions:
-        await ctx.send("No valid stock name or ticker found. Please use commas to separate suggestions.")
+@bot.tree.command(name="request", description="Request one or more stocks by name or ticker")
+@app_commands.describe(stocks="Enter any number of stock names or tickers, separated by commas (e.g. Apple, TSLA, Nvidia)")
+async def request(interaction: discord.Interaction, stocks: str):
+    requests = [s.strip().upper() for s in stocks.split(",")]
+        
+    if not requests:
+        await interaction.response.send_message("No valid stock name or ticker found. Please use commas to separate requests.")
         return
+    
+    user_id = interaction.user.id
+    confirmed, awaiting, no_matches = process_requests(requests)
 
-    user_id = ctx.author.id
-    confirmed, awaiting = process_suggestions(suggestions)
+    messages = []
+
+    if confirmed:
+        bot.db.add_member_requests(user_id, confirmed, interaction.user.display_name)
+        messages.append(f"Requests received: {', '.join(confirmed)}")
+        #await interaction.channel.send(f"{interaction.user.mention} submitted stock requests!")
+
+    if no_matches:
+        messages.append(f"No match found for: {', '.join(no_matches)}")
+        messages.append(f"Please check spelling or try using the stock's ticker symbol.")
 
     if awaiting:
         user_states[user_id] = {
             "awaiting": awaiting,
             "confirmed": confirmed,
-            "current_term": next(iter(awaiting))
+            "current_request": next(iter(awaiting))
         }
-        await prompt_next_suggestion(ctx, user_id)
+        await interaction.response.send_message(
+        f"Multiple tickers found for {user_states[user_id]['current_request']}:",
+        view=TickerView(user_id, user_states[user_id]), ephemeral=True)
     else:
-        await ctx.send(f"Got your suggestions: {', '.join(suggestions)}")
-        # add_suggestions(user_id, confirmed, ctx.author.display_name)
+        await interaction.response.send_message("\n".join(messages), ephemeral=True)
+
 
 @bot.command()
 async def tally(ctx):
