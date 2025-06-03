@@ -178,9 +178,9 @@ async def count(interaction: discord.Interaction):
     message = "\n".join(message_lines)
     await interaction.response.send_message(message)
 
-@bot.command()
-async def reset(ctx):
-    reset_suggestions()
-    await ctx.send("Votes reset.")
+@bot.tree.command(name="reset", description="Reset all requests.")
+async def reset(interaction: discord.Interaction):
+    bot.db.reset_all_data()
+    await interaction.response.send_message("All requests have been cleared.\n New ones can now be submitted for next week’s chart analyses.", ephemeral=True)
 
 bot.run(token)
