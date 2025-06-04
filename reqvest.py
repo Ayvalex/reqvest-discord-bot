@@ -183,4 +183,15 @@ async def reset(interaction: discord.Interaction):
     bot.db.reset_all_data()
     await interaction.response.send_message("All requests have been cleared.\n New ones can now be submitted for next week’s chart analyses.", ephemeral=True)
 
+@bot.tree.command(name="help", description="Learn how to use the Request Bot.")
+async def help(interaction: discord.Interaction):
+    help_message = (
+        "Use the `/request` command to submit one or more stock tickers or company names.\n"
+        "- Separate multiple entries with commas.\n"
+        "- You can use either full company names or ticker symbols (e.g., `AAPL`, `Tesla`).\n"
+        "- If a name matches multiple tickers, you’ll be prompted to choose the correct one.\n"
+        "- Only __one vote per stock__ will be counted per user — duplicate entries are ignored.\n"
+    )
+    await interaction.response.send_message(help_message, ephemeral=True)
+
 bot.run(token)
