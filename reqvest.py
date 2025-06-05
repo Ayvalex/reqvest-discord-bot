@@ -47,35 +47,39 @@ user_states = {}
 
 class TickerSelect(Select):
     def __init__(self, options, user_id, state):
-        super().__init__(placeholder="Choose a ticker", min_values=1, max_values=1, 
-                         options=[discord.SelectOption(label=o) for o in options])
+        super().__init__(placeholder="Choose a ticker", min_values=1, max_values=1, options=[discord.SelectOption(label=o) for o in options])
         self.user_id = user_id
         self.state = state
 
     async def callback(self, interaction: discord.Interaction):
         selected = self.values[0]
         self.state["confirmed"].append(selected)
-        del self.state["awaiting"][self.state["current_term"]]
+        del self.state["awaiting"][self.state["current_request"]]
+
+        self.disabled = True
+        await interaction.response.edit_message(view=self.view)
 
         if self.state["awaiting"]:
-            self.state["current_term"] = next(iter(self.state["awaiting"]))
-            await interaction.response.send_message(
-                f"Multiple tickers found for {self.state['current_term']}:",
-                view=TickerView(self.user_id, self.state)
+            self.state["current_request"] = next(iter(self.state["awaiting"]))
+            await interaction.followup.send(
+                f"Multiple tickers found for {self.state['current_request']}:",
+                view=TickerView(self.user_id, self.state),
+                ephemeral=True
             )
         else:
-            await interaction.response.send_message(
-                f"Suggestions received: {', '.join(self.state['confirmed'])}"
-            )
+            bot.db.add_member_requests(self.user_id, self.state["confirmed"], interaction.user.display_name)
+            await interaction.followup.send(f"Requests received: {', '.join(self.state['confirmed'])}", ephemeral=True)
+            #await interaction.channel.send(f"{interaction.user.mention} submitted stock requests!")
             del user_states[self.user_id]
 
 class TickerView(View):
     def __init__(self, user_id, state):
-        super().__init__()
-        self.add_item(TickerSelect(state["awaiting"][state["current_term"]], user_id, state))
+        super().__init__(timeout=None)
+        self.select = TickerSelect(state["awaiting"][state["current_request"]], user_id, state)
+        self.add_item(self.select)
 
 def clean_company_name(name):
-    pattern = r"(\\|/|,|\bCORP\b|\bCORPORATION|\bINC\b|\bLTD\b|\bLLC\b|\bCOM\b|\bAG\b|\b(?:[A-Z]\.){2,}).*"
+    pattern = r"(\\|/|,|\bCORP\b|\bCORPORATION|\bINC\b|\bINTERNATIONAL\b|\bSYSTEMS\b|\bLABORATORIES\b|\bTRUST\b|\bTECHNOLOGIES\b|\bTECHNOLOGY\b|\bCOMPANIES\b|\bWHOLESALE\b|\bMARKETS\b|\bPLC\b|\bGROUP\b|\bNV\b|\bA\sS\b|\bCO\b|&\sCO\b|&\sCOMPANY\b|\bCOMMUNICATIONS\b|\bUFJ\b|\bSE\b|\bINBEV\b|\bFINANCIAL\b|\bHOLDING|\bLTD\b|\bLLC\b|\bCOM\b|\bAG\b).*"
     return re.sub(pattern, "", name, flags=re.IGNORECASE).strip().upper()
 
 def build_company_data(filepath):
@@ -87,6 +91,7 @@ def build_company_data(filepath):
     for entry in raw_data.values():
         if "ticker" in entry and "title" in entry:
             name = clean_company_name(entry["title"])
+            # name = entry["title"].strip().upper()
             ticker = entry["ticker"].upper()
             company_map[name].append(ticker)
 
@@ -162,7 +167,7 @@ async def request(interaction: discord.Interaction, stocks: str):
         view=TickerView(user_id, user_states[user_id]), ephemeral=True)
     else:
         await interaction.response.send_message("\n".join(messages), ephemeral=True)
-
+        
 @bot.tree.command(name="count", description="Show the count of all ticker requests.")
 async def count(interaction: discord.Interaction):
     tally = bot.db.requests_count()  
@@ -193,5 +198,5 @@ async def help(interaction: discord.Interaction):
         "- Only __one vote per stock__ will be counted per user — duplicate entries are ignored.\n"
     )
     await interaction.response.send_message(help_message, ephemeral=True)
-
+    
 bot.run(token)
