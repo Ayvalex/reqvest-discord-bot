@@ -41,50 +41,56 @@ class Database:
 
         self.conn.commit()
 
-    def _add_member(self, discord_id, member_name):
+    def _add_member(self, guild_id, discord_id, member_name):
         self.cur.execute("""
-            INSERT INTO members (discord_id, member_name)
-            VALUES (%s, %s)
-            ON CONFLICT (discord_id) DO NOTHING
-        """, (discord_id, member_name))
+            INSERT INTO members (guild_id, discord_id, member_name)
+            VALUES (%s, %s, %s)
+            ON CONFLICT DO NOTHING
+        """, (guild_id, discord_id, member_name))
         self.conn.commit()
 
-    def _add_requests(self, tickers):
+    def _add_requests(self, guild_id, tickers):
         for ticker in tickers:
             self.cur.execute("""
-                INSERT INTO requests (ticker)
-                VALUES (%s)
-                ON CONFLICT DO NOTHING
-            """, (ticker.upper(),))
-        self.conn.commit()
-
-    def _link_member_to_requests(self, discord_id, tickers):
-        for ticker in tickers:
-            self.cur.execute("""
-                INSERT INTO members_requests (discord_id, ticker)
+                INSERT INTO requests (guild_id, ticker)
                 VALUES (%s, %s)
-                ON CONFLICT DO NOTHING;""", (discord_id, ticker.upper()))
-            
+                ON CONFLICT DO NOTHING
+            """, (guild_id, ticker.upper()))
         self.conn.commit()
 
-    def add_member_requests(self, discord_id, tickers, member_name):
-        self._add_member(discord_id, member_name)
-        self._add_requests(tickers)
-        self._link_member_to_requests(discord_id, tickers)
+    def _link_member_to_requests(self, guild_id, discord_id, tickers):
+        for ticker in tickers:
+            self.cur.execute("""
+                INSERT INTO members_requests (guild_id, discord_id, ticker)
+                VALUES (%s, %s, %s)
+                ON CONFLICT DO NOTHING
+            """, (guild_id, discord_id, ticker.upper()))
+        self.conn.commit()
 
-    def requests_count(self):
+    def add_member_requests(self, guild_id, discord_id, tickers, member_name):
+        self._add_member(guild_id, discord_id, member_name)
+        self._add_requests(guild_id, tickers)
+        self._link_member_to_requests(guild_id, discord_id, tickers)
+
+    def requests_count(self, guild_id):
         self.cur.execute("""
             SELECT ticker, COUNT(*) as votes
             FROM members_requests
+            WHERE guild_id = %s
             GROUP BY ticker
             ORDER BY votes DESC
-        """)
+        """, (guild_id,))
         return self.cur.fetchall()
-
-    def reset_all_data(self):
-        self.cur.execute("TRUNCATE members, requests CASCADE")
+    
+    def reset_all_data(self, guild_id):
+        self.cur.execute("""
+            DELETE FROM members_requests WHERE guild_id = %s;
+            DELETE FROM members WHERE guild_id = %s;
+            DELETE FROM requests WHERE guild_id = %s;
+        """, (guild_id, guild_id, guild_id))
         self.conn.commit()
 
     def close(self):
         self.cur.close()
         self.conn.close()
+
