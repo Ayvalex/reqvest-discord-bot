@@ -82,6 +82,22 @@ class Database:
         """, (guild_id,))
         return self.cur.fetchall()
     
+    """ def has_user_voted(self, guild_id, user_id):
+        result = self.cur.execute(
+            "SELECT 1 FROM members WHERE guild_id = %s AND discord_id = %s LIMIT 1",
+            (guild_id, user_id)
+        ).fetchone()
+
+        return result is not None """
+    
+    def has_user_voted(self, guild_id, user_id):
+        self.cur.execute(
+            "SELECT 1 FROM members_requests WHERE guild_id = %s AND discord_id = %s LIMIT 1",
+            (guild_id, user_id)
+        )
+        result = self.cur.fetchone()
+        return result is not None
+
     def reset_all_data(self, guild_id):
         self.cur.execute("""
             DELETE FROM members_requests WHERE guild_id = %s;
