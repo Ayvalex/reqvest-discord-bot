@@ -67,7 +67,7 @@ class TickerSelect(Select):
                 ephemeral=True
             )
         else:
-            bot.db.add_member_requests(self.user_id, self.state["confirmed"], interaction.user.display_name)
+            bot.db.add_member_requests(interaction.guild_id, self.user_id, self.state["confirmed"], interaction.user.display_name)
             await interaction.followup.send(f"Requests received: {', '.join(self.state['confirmed'])}", ephemeral=True)
             #await interaction.channel.send(f"{interaction.user.mention} submitted stock requests!")
             del user_states[self.user_id]
@@ -148,7 +148,7 @@ async def request(interaction: discord.Interaction, stocks: str):
     messages = []
 
     if confirmed:
-        bot.db.add_member_requests(user_id, confirmed, interaction.user.display_name)
+        bot.db.add_member_requests(interaction.guild_id, user_id, confirmed, interaction.user.display_name)
         messages.append(f"Requests received: {', '.join(confirmed)}")
         #await interaction.channel.send(f"{interaction.user.mention} submitted stock requests!")
 
@@ -170,7 +170,7 @@ async def request(interaction: discord.Interaction, stocks: str):
         
 @bot.tree.command(name="count", description="Show the count of all ticker requests.")
 async def count(interaction: discord.Interaction):
-    tally = bot.db.requests_count()  
+    tally = bot.db.requests_count(interaction.guild_id) 
 
     if not tally:
         await interaction.response.send_message("No requests have been made yet.")
@@ -185,7 +185,7 @@ async def count(interaction: discord.Interaction):
 
 @bot.tree.command(name="reset", description="Reset all requests.")
 async def reset(interaction: discord.Interaction):
-    bot.db.reset_all_data()
+    bot.db.reset_all_data(interaction.guild_id)
     await interaction.response.send_message("All requests have been cleared.\n New ones can now be submitted for next week’s chart analyses.", ephemeral=True)
 
 @bot.tree.command(name="help", description="Learn how to use the Request Bot.")
