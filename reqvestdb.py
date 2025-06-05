@@ -13,24 +13,32 @@ class Database:
     def create_tables(self):
         self.cur.execute('''
             CREATE TABLE IF NOT EXISTS members (
-                discord_id BIGINT PRIMARY KEY,
-                member_name TEXT NOT NULL
+                guild_id BIGINT,
+                discord_id BIGINT,
+                member_name TEXT NOT NULL,
+                PRIMARY KEY (guild_id, discord_id)
             )
         ''')
+
         self.cur.execute('''
             CREATE TABLE IF NOT EXISTS requests (
-                ticker TEXT PRIMARY KEY
+                guild_id BIGINT,
+                ticker TEXT,
+                PRIMARY KEY (guild_id, ticker)
             )
         ''')
+
         self.cur.execute('''
             CREATE TABLE IF NOT EXISTS members_requests (
+                guild_id BIGINT,
                 discord_id BIGINT,
                 ticker TEXT,
-                PRIMARY KEY (discord_id, ticker),
-                FOREIGN KEY (discord_id) REFERENCES members(discord_id) ON DELETE CASCADE,
-                FOREIGN KEY (ticker) REFERENCES requests(ticker) ON DELETE CASCADE
+                PRIMARY KEY (guild_id, discord_id, ticker),
+                FOREIGN KEY (guild_id, discord_id) REFERENCES members(guild_id, discord_id) ON DELETE CASCADE,
+                FOREIGN KEY (guild_id, ticker) REFERENCES requests(guild_id, ticker) ON DELETE CASCADE
             )
         ''')
+
         self.conn.commit()
 
     def _add_member(self, discord_id, member_name):
