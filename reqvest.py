@@ -226,18 +226,29 @@ async def request(interaction: discord.Interaction, stocks: str):
         
 @bot.tree.command(name="count", description="Show the count of all ticker requests.")
 async def count(interaction: discord.Interaction):
-    tally = bot.db.requests_count(interaction.guild_id) 
+    tally = bot.db.requests_count(interaction.guild_id)
 
     if not tally:
-        await interaction.response.send_message("No requests have been made yet.")
+        embed = discord.Embed(
+            title="No Stock Requests Yet",
+            description="No stock requests have been made so far. Use `/request` to submit your picks!",
+            color=discord.Color.orange()
+        )
+        await interaction.response.send_message(embed=embed)
         return
 
-    message_lines = [f"**Vote Counts Per Requested Ticker:**"]
-    for index, (ticker, count) in enumerate(tally, start=1):
-        message_lines.append(f"{index}. **{ticker}**: {count} vote{'s' if count != 1 else ''}")
+    vote_lines = [
+        f"{i+1:>2}. **{ticker}** — {count} vote{'s' if count != 1 else ''}"
+        for i, (ticker, count) in enumerate(tally)
+    ]
 
-    message = "\n".join(message_lines)
-    await interaction.response.send_message(message)
+    embed = discord.Embed(
+        title="Vote Counts Per Requested Ticker:",
+        description="\n".join(vote_lines),
+        color=discord.Color.teal()
+    )
+
+    await interaction.response.send_message(embed=embed)
 
 """ def get_upcoming_sunday_date():
     today = datetime.now()
