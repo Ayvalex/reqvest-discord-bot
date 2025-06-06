@@ -125,6 +125,30 @@ async def on_ready():
     # if not daily_reminder.is_running():
     #     daily_reminder.start()
 
+@bot.event
+async def on_message(message):
+    if message.author.bot:
+        return
+
+    if bot.db.has_user_voted(message.guild.id, message.author.id):
+        return
+    
+    try:
+        embed = discord.Embed(
+            description=(
+                f"{message.author.mention} — want to make stock requests?\n\n"
+                "Use `/request` to submit picks.\n"
+                "Use `/help` if you're unsure.\n"
+                "Top 10 tickers get charted every **Sunday**."
+            ),
+            color=discord.Color.blurple() 
+        )
+        await message.channel.send(embed=embed, delete_after=20)
+    except discord.Forbidden:
+        pass
+
+    await bot.process_commands(message) 
+
 def process_requests(requests):
     confirmed = []
     awaiting = {}
