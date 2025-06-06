@@ -9,6 +9,11 @@ from rapidfuzz import process, fuzz
 import re
 from collections import defaultdict
 from discord.ui import View, Select
+from datetime import datetime, time, timedelta
+import pytz
+
+TORONTO_TZ = pytz.timezone('America/Toronto')
+PACIFIC_TZ = pytz.timezone("America/Los_Angeles")
 
 load_dotenv()
 token = os.getenv('DISCORD_TOKEN')
@@ -102,9 +107,23 @@ def build_company_data(filepath):
 
 company_to_ticker, ticker_to_company = build_company_data("company_tickers.json")
 
+""" @tasks.loop(minutes=1)
+async def daily_reminder():
+    now = datetime.now(PACIFIC_TZ)
+
+    if now.weekday() < 6 and now.time().hour == 3 and now.time().minute == 7:
+        for guild in bot.guilds:
+            channel = guild.text_channels[0]  # Only channel bot has access to
+            try:
+                await channel.send("Friendly reminder: Stock analyses are done over the **weekend**. Submit your stock requests using /request before [cutoff time]!")
+            except discord.Forbidden:
+                pass """
+
 @bot.event
 async def on_ready():
     pass
+    # if not daily_reminder.is_running():
+    #     daily_reminder.start()
 
 def process_requests(requests):
     confirmed = []
@@ -182,6 +201,20 @@ async def count(interaction: discord.Interaction):
 
     message = "\n".join(message_lines)
     await interaction.response.send_message(message)
+
+""" def get_upcoming_sunday_date():
+    today = datetime.now()
+    days_ahead = (6 - today.weekday()) % 7  # Sunday = 6
+    upcoming_sunday = today + timedelta(days=days_ahead)
+    return upcoming_sunday.strftime("%m/%d") """
+
+def get_upcoming_sunday_date():
+    today = datetime.now()
+    days_ahead = (6 - today.weekday()) % 7
+    if days_ahead == 0:
+        days_ahead = 7  
+    upcoming_sunday = today + timedelta(days=days_ahead)
+    return upcoming_sunday.strftime("%m/%d")
 
 @bot.tree.command(name="reset", description="Reset all requests.")
 async def reset(interaction: discord.Interaction):
