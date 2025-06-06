@@ -152,6 +152,11 @@ def process_requests(requests):
 
     return confirmed, awaiting, no_matches
 
+def is_valid_request(text):
+    text = text.strip()
+    
+    return bool(re.search(r"[a-zA-Z]", text))
+
 @bot.tree.command(name="request", description="Request one or more stocks by name or ticker")
 @app_commands.describe(stocks="Enter any number of stock names or tickers, separated by commas (e.g. Apple, TSLA, Nvidia)")
 async def request(interaction: discord.Interaction, stocks: str):
@@ -161,15 +166,23 @@ async def request(interaction: discord.Interaction, stocks: str):
         await interaction.response.send_message("No valid stock name or ticker found. Please use commas to separate requests.")
         return
     
+    valid_requests = [r for r in requests if is_valid_request(r)]
+    
+    if not valid_requests:
+        await interaction.response.send_message("No valid stock names or tickers detected. Please use company names or ticker symbols.", ephemeral=True)
+        return
+    
     user_id = interaction.user.id
-    confirmed, awaiting, no_matches = process_requests(requests)
+    #confirmed, awaiting, no_matches = process_requests(requests)
+    confirmed, awaiting, no_matches = process_requests(valid_requests)
 
     messages = []
 
     if confirmed:
         bot.db.add_member_requests(interaction.guild_id, user_id, confirmed, interaction.user.display_name)
         messages.append(f"Requests received: {', '.join(confirmed)}")
-        #await interaction.channel.send(f"{interaction.user.mention} submitted stock requests!")
+        if not awaiting:
+            await interaction.channel.send(f"{interaction.user.mention} submitted stock requests!", delete_after=43200)
 
     if no_matches:
         messages.append(f"No match found for: {', '.join(no_matches)}")
