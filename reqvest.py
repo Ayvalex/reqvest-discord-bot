@@ -267,7 +267,38 @@ def get_upcoming_sunday_date():
 @bot.tree.command(name="reset", description="Reset all requests.")
 async def reset(interaction: discord.Interaction):
     bot.db.reset_all_data(interaction.guild_id)
-    await interaction.response.send_message("All requests have been cleared.\n New ones can now be submitted for next week’s chart analyses.", ephemeral=True)
+
+    upcoming_sunday = get_upcoming_sunday_date()
+
+    confirmation_embed = discord.Embed(
+        title="Requests Reset",
+        description="All requests have been **cleared**.",
+        color=discord.Color.red()
+    )
+    await interaction.response.send_message(embed=confirmation_embed, ephemeral=True)
+
+    role = discord.utils.get(interaction.guild.roles, name="Tier 3: Xtra stocks/Chart Request")
+    if role:
+        mention = role.mention  
+    else:
+        mention = "Tier 3: Xtra stocks/Chart Request"
+
+    announcement_embed = discord.Embed(
+        title="📢 NEW REQUEST CYCLE HAS BEGUN!",
+        description=(
+            "**All previous requests have been cleared.**\n\n"
+            f"Submit your picks by Sunday (**{upcoming_sunday}**, Eastern Time)!\n\n"
+            "Top 10 most requested will be analyzed on Sunday.\n\n"
+            "Need help? Use `/help`."
+        ),
+        color=discord.Color.green()
+    )
+
+    try:
+        await interaction.channel.send(content=mention)
+        await interaction.channel.send(embed=announcement_embed)
+    except discord.Forbidden:
+        pass
 
 @bot.tree.command(name="help", description="Learn how to use the Request Bot.")
 async def help(interaction: discord.Interaction):
