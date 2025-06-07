@@ -74,8 +74,9 @@ class TickerSelect(Select):
         else:
             bot.db.add_member_requests(interaction.guild_id, self.user_id, self.state["confirmed"], interaction.user.display_name)
             await interaction.followup.send(f"Requests received: {', '.join(self.state['confirmed'])}", ephemeral=True)
-            #await interaction.channel.send(f"{interaction.user.mention} submitted stock requests!")
+            await interaction.channel.send(f"{interaction.user.mention} submitted stock requests!", delete_after=86400)
             del user_states[self.user_id]
+
 
 class TickerView(View):
     def __init__(self, user_id, state):
@@ -83,9 +84,11 @@ class TickerView(View):
         self.select = TickerSelect(state["awaiting"][state["current_request"]], user_id, state)
         self.add_item(self.select)
 
+
 def clean_company_name(name):
     pattern = r"(\\|/|,|\bCORP\b|\bCORPORATION|\bINC\b|\bINTERNATIONAL\b|\bSYSTEMS\b|\bLABORATORIES\b|\bTRUST\b|\bTECHNOLOGIES\b|\bTECHNOLOGY\b|\bCOMPANIES\b|\bWHOLESALE\b|\bMARKETS\b|\bPLC\b|\bGROUP\b|\bNV\b|\bA\sS\b|\bCO\b|&\sCO\b|&\sCOMPANY\b|\bCOMMUNICATIONS\b|\bUFJ\b|\bSE\b|\bINBEV\b|\bFINANCIAL\b|\bHOLDING|\bLTD\b|\bLLC\b|\bCOM\b|\bAG\b).*"
     return re.sub(pattern, "", name, flags=re.IGNORECASE).strip().upper()
+
 
 def build_company_data(filepath):
     with open(filepath, "r") as f:
@@ -107,6 +110,8 @@ def build_company_data(filepath):
 
 company_to_ticker, ticker_to_company = build_company_data("company_tickers.json")
 
+PACIFIC_TZ = pytz.timezone("America/Los_Angeles")
+
 """ @tasks.loop(minutes=1)
 async def daily_reminder():
     now = datetime.now(PACIFIC_TZ)
@@ -118,12 +123,13 @@ async def daily_reminder():
                 await channel.send("Friendly reminder: Stock analyses are done over the **weekend**. Submit your stock requests using /request before [cutoff time]!")
             except discord.Forbidden:
                 pass """
-
+ 
 @bot.event
 async def on_ready():
     pass
     # if not daily_reminder.is_running():
     #     daily_reminder.start()
+
 
 @bot.event
 async def on_message(message):
@@ -148,6 +154,7 @@ async def on_message(message):
         pass
 
     await bot.process_commands(message) 
+    
 
 def process_requests(requests):
     confirmed = []
@@ -206,7 +213,7 @@ async def request(interaction: discord.Interaction, stocks: str):
         bot.db.add_member_requests(interaction.guild_id, user_id, confirmed, interaction.user.display_name)
         messages.append(f"Requests received: {', '.join(confirmed)}")
         if not awaiting:
-            await interaction.channel.send(f"{interaction.user.mention} submitted stock requests!", delete_after=43200)
+            await interaction.channel.send(f"{interaction.user.mention} submitted stock requests!", delete_after=86400)
 
     if no_matches:
         messages.append(f"No match found for: {', '.join(no_matches)}")
@@ -224,6 +231,7 @@ async def request(interaction: discord.Interaction, stocks: str):
     else:
         await interaction.response.send_message("\n".join(messages), ephemeral=True)
         
+
 @bot.tree.command(name="count", description="Show the count of all ticker requests.")
 async def count(interaction: discord.Interaction):
     tally = bot.db.requests_count(interaction.guild_id)
@@ -250,6 +258,7 @@ async def count(interaction: discord.Interaction):
 
     await interaction.response.send_message(embed=embed)
 
+
 """ def get_upcoming_sunday_date():
     today = datetime.now()
     days_ahead = (6 - today.weekday()) % 7  # Sunday = 6
@@ -263,6 +272,7 @@ def get_upcoming_sunday_date():
         days_ahead = 7  
     upcoming_sunday = today + timedelta(days=days_ahead)
     return upcoming_sunday.strftime("%m/%d")
+
 
 @bot.tree.command(name="reset", description="Reset all requests.")
 async def reset(interaction: discord.Interaction):
@@ -300,15 +310,28 @@ async def reset(interaction: discord.Interaction):
     except discord.Forbidden:
         pass
 
+
 @bot.tree.command(name="help", description="Learn how to use the Request Bot.")
 async def help(interaction: discord.Interaction):
-    help_message = (
-        "Use the `/request` command to submit one or more stock tickers or company names.\n"
-        "- Separate multiple entries with commas.\n"
-        "- You can use either full company names or ticker symbols (e.g., `AAPL`, `Tesla`).\n"
-        "- If a name matches multiple tickers, you’ll be prompted to choose the correct one.\n"
-        "- Only __one vote per stock__ will be counted per user — duplicate entries are ignored.\n"
+    embed = discord.Embed(
+        title="How to Use the Request Bot",
+        description=(
+            "Use the `/request` command to submit one or more **stock tickers** or **company names**."
+        ),
+        color=discord.Color.blue()
     )
-    await interaction.response.send_message(help_message, ephemeral=True)
-    
+
+    embed.add_field(
+        name="Instructions",
+        value=(
+            "• Separate multiple entries with commas.\n"
+            "• Use full company names or ticker symbols (e.g., `AAPL`, `Tesla`).\n"
+            "• If a name matches multiple tickers, you'll be asked to pick the correct one.\n"
+            "• Only __one vote per stock__ is counted per user — duplicates are ignored."
+        ),
+        inline=False
+    )
+
+    await interaction.response.send_message(embed=embed, ephemeral=True)
+
 bot.run(token)
