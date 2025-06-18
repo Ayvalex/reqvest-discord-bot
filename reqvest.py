@@ -86,8 +86,23 @@ class TickerView(View):
 
 
 def clean_company_name(name):
-    pattern = r"(\\|/|,|\bCORP\b|\bCORPORATION|\bINC\b|\bINTERNATIONAL\b|\bSYSTEMS\b|\bLABORATORIES\b|\bTRUST\b|\bTECHNOLOGIES\b|\bTECHNOLOGY\b|\bCOMPANIES\b|\bWHOLESALE\b|\bMARKETS\b|\bPLC\b|\bGROUP\b|\bNV\b|\bA\sS\b|\bCO\b|&\sCO\b|&\sCOMPANY\b|\bCOMMUNICATIONS\b|\bUFJ\b|\bSE\b|\bINBEV\b|\bFINANCIAL\b|\bHOLDING|\bLTD\b|\bLLC\b|\bCOM\b|\bAG\b).*"
-    return re.sub(pattern, "", name, flags=re.IGNORECASE).strip().upper()
+    name = re.sub(r'[,\s]*\bNew\b\s*$', '', name, flags=re.IGNORECASE)
+
+    name = re.sub(
+        r'\b(Corporation|Corp\.?|Inc\.?|Incorporated|Ltd\.?|LLC|PLC|S\.A\.|L\.P\.|Group|Holdings?|'
+        r'Company|Co\.?|Class [A-Z]+|Series [A-Z0-9]+|Units?|Warrants?|ETF.*?|Depositary Shares.*?|'
+        r'Common Stock|Preferred Stock|Ordinary Shares|American Depositary Shares)\b',
+        '',
+        name,
+        flags=re.IGNORECASE
+    )
+
+    name = re.sub(r'[^A-Za-z0-9\s]', '', name)
+
+    name = re.sub(r'\s+', ' ', name).strip()
+
+    return name.upper()
+
 
 def build_company_data(filepath):
     with open(filepath, "r") as f:
