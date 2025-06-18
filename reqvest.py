@@ -89,16 +89,15 @@ def clean_company_name(name):
     pattern = r"(\\|/|,|\bCORP\b|\bCORPORATION|\bINC\b|\bINTERNATIONAL\b|\bSYSTEMS\b|\bLABORATORIES\b|\bTRUST\b|\bTECHNOLOGIES\b|\bTECHNOLOGY\b|\bCOMPANIES\b|\bWHOLESALE\b|\bMARKETS\b|\bPLC\b|\bGROUP\b|\bNV\b|\bA\sS\b|\bCO\b|&\sCO\b|&\sCOMPANY\b|\bCOMMUNICATIONS\b|\bUFJ\b|\bSE\b|\bINBEV\b|\bFINANCIAL\b|\bHOLDING|\bLTD\b|\bLLC\b|\bCOM\b|\bAG\b).*"
     return re.sub(pattern, "", name, flags=re.IGNORECASE).strip().upper()
 
-
 def build_company_data(filepath):
     with open(filepath, "r") as f:
         raw_data = json.load(f)
 
     company_map = defaultdict(list)
     
-    for entry in raw_data.values():
-        if "ticker" in entry and "title" in entry:
-            name = clean_company_name(entry["title"])
+    for entry in raw_data:
+        if entry["market"] not in ["indices", "otc", "fx"]:
+            name = clean_company_name(entry["name"])
             # name = entry["title"].strip().upper()
             ticker = entry["ticker"].upper()
             company_map[name].append(ticker)
@@ -108,9 +107,7 @@ def build_company_data(filepath):
 
     return company_to_ticker, ticker_to_company
 
-company_to_ticker, ticker_to_company = build_company_data("company_tickers.json")
-
-PACIFIC_TZ = pytz.timezone("America/Los_Angeles")
+company_to_ticker, ticker_to_company = build_company_data("tickers.json")
 
 """ @tasks.loop(minutes=1)
 async def daily_reminder():

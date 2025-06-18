@@ -3,3 +3,4 @@ suggestions.db
 __pycache__/
 *.py[cod]
 *.pyo
+tickers.json
