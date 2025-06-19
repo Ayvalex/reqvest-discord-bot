@@ -124,6 +124,7 @@ def build_company_data(filepath):
 
 company_to_ticker, ticker_to_company = build_company_data("tickers.json")
 
+
 """ @tasks.loop(minutes=1)
 async def daily_reminder():
     now = datetime.now(PACIFIC_TZ)
@@ -135,6 +136,7 @@ async def daily_reminder():
                 await channel.send("Friendly reminder: Stock analyses are done over the **weekend**. Submit your stock requests using /request before [cutoff time]!")
             except discord.Forbidden:
                 pass """
+ 
  
 @bot.event
 async def on_ready():
@@ -166,7 +168,24 @@ async def on_message(message):
         pass
 
     await bot.process_commands(message) 
-    
+
+
+""" def company_name_scorer(query, choice, **kwargs):
+    return (
+        0.5 * fuzz.partial_ratio(query, choice)
+        + 0.3 * fuzz.token_set_ratio(query, choice)
+        + 0.2 * fuzz.ratio(query, choice)
+    ) """
+
+def company_name_scorer(query, choice, **kwargs):
+    return (
+        0.35 * fuzz.partial_token_set_ratio(query, choice)
+        + 0.25 * fuzz.partial_ratio(query, choice)
+        + 0.2 * fuzz.token_sort_ratio(query, choice)
+        + 0.1 * fuzz.ratio(query, choice)
+        + 0.1 * fuzz.WRatio(query, choice)
+    )
+
 
 def process_requests(requests):
     confirmed = []
@@ -183,7 +202,7 @@ def process_requests(requests):
             else:
                 awaiting[request] = tickers
         else:
-            match, score, _ = process.extractOne(request, company_to_ticker.keys(), scorer=fuzz.partial_ratio)
+            match, score, _ = process.extractOne(request, company_to_ticker.keys(), scorer=company_name_scorer)
             if score > 80:
                 tickers = company_to_ticker[match]
                 if len(tickers) == 1:
@@ -195,10 +214,12 @@ def process_requests(requests):
 
     return confirmed, awaiting, no_matches
 
+
 def is_valid_request(text):
     text = text.strip()
     
     return bool(re.search(r"[a-zA-Z]", text))
+
 
 @bot.tree.command(name="request", description="Request one or more stocks by name or ticker")
 @app_commands.describe(stocks="Enter any number of stock names or tickers, separated by commas (e.g. Apple, TSLA, Nvidia)")
@@ -309,7 +330,8 @@ async def reset(interaction: discord.Interaction):
         title="📢 NEW REQUEST CYCLE HAS BEGUN!",
         description=(
             "**All previous requests have been cleared.**\n\n"
-            f"Submit your picks by Sunday (**{upcoming_sunday}**, Eastern Time)!\n\n"
+            "Type `/` and choose `request` to make submissions.\n\n"
+            f"Cast your picks by Sunday (**{upcoming_sunday}**, Eastern Time)!\n\n"
             "Top 10 most requested will be analyzed on Sunday.\n\n"
             "Need help? Use `/help`."
         ),
