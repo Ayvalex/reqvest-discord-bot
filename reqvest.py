@@ -52,17 +52,25 @@ user_states = {}
 
 class TickerSelect(Select):
     def __init__(self, options, user_id, state):
-        super().__init__(placeholder="Choose a ticker", min_values=1, max_values=1, options=[discord.SelectOption(label=o) for o in options])
+        super().__init__(
+            placeholder="Choose a ticker",
+            min_values=1,
+            max_values=1,
+            options=[discord.SelectOption(label=o) for o in options]
+        )
         self.user_id = user_id
         self.state = state
 
     async def callback(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
+
         selected = self.values[0]
         self.state["confirmed"].append(selected)
         del self.state["awaiting"][self.state["current_request"]]
 
         self.disabled = True
-        await interaction.response.edit_message(view=self.view)
+
+        await interaction.edit_original_response(view=self.view)
 
         if self.state["awaiting"]:
             self.state["current_request"] = next(iter(self.state["awaiting"]))
@@ -72,9 +80,22 @@ class TickerSelect(Select):
                 ephemeral=True
             )
         else:
-            bot.db.add_member_requests(interaction.guild_id, self.user_id, self.state["confirmed"], interaction.user.display_name)
-            await interaction.followup.send(f"Requests received: {', '.join(self.state['confirmed'])}", ephemeral=True)
-            await interaction.channel.send(f"{interaction.user.mention} submitted stock requests!", delete_after=86400)
+            bot.db.add_member_requests(
+                interaction.guild_id,
+                self.user_id,
+                self.state["confirmed"],
+                interaction.user.display_name
+            )
+
+            await interaction.followup.send(
+                f"Requests received: {', '.join(self.state['confirmed'])}",
+                ephemeral=True
+            )
+
+            await interaction.channel.send(
+                f"{interaction.user.mention} submitted stock requests!"
+            )
+
             del user_states[self.user_id]
 
 
@@ -224,20 +245,19 @@ def is_valid_request(text):
 @bot.tree.command(name="request", description="Request one or more stocks by name or ticker")
 @app_commands.describe(stocks="Enter any number of stock names or tickers, separated by commas (e.g. Apple, TSLA, Nvidia)")
 async def request(interaction: discord.Interaction, stocks: str):
+    await interaction.response.defer(ephemeral=True)
+
     requests = [s.strip().upper() for s in stocks.split(",")]
-        
-    if not requests:
-        await interaction.response.send_message("No valid stock name or ticker found. Please use commas to separate requests.")
-        return
-    
     valid_requests = [r for r in requests if is_valid_request(r)]
-    
+
     if not valid_requests:
-        await interaction.response.send_message("No valid stock names or tickers detected. Please use company names or ticker symbols.", ephemeral=True)
+        await interaction.followup.send(
+            "No valid stock names or tickers detected. Please use company names or ticker symbols.",
+            ephemeral=True
+        )
         return
-    
+
     user_id = interaction.user.id
-    #confirmed, awaiting, no_matches = process_requests(requests)
     confirmed, awaiting, no_matches = process_requests(valid_requests)
 
     messages = []
@@ -245,12 +265,15 @@ async def request(interaction: discord.Interaction, stocks: str):
     if confirmed:
         bot.db.add_member_requests(interaction.guild_id, user_id, confirmed, interaction.user.display_name)
         messages.append(f"Requests received: {', '.join(confirmed)}")
+
         if not awaiting:
-            await interaction.channel.send(f"{interaction.user.mention} submitted stock requests!", delete_after=86400)
+            await interaction.channel.send(
+                f"{interaction.user.mention} submitted stock requests!"
+            )
 
     if no_matches:
         messages.append(f"No match found for: {', '.join(no_matches)}")
-        messages.append(f"Please check spelling or try using the stock's ticker symbol.")
+        messages.append("Please check spelling or try using the stock's ticker symbol.")
 
     if awaiting:
         user_states[user_id] = {
@@ -258,13 +281,19 @@ async def request(interaction: discord.Interaction, stocks: str):
             "confirmed": confirmed,
             "current_request": next(iter(awaiting))
         }
-        await interaction.response.send_message(
-        f"Multiple tickers found for {user_states[user_id]['current_request']}:",
-        view=TickerView(user_id, user_states[user_id]), ephemeral=True)
-    else:
-        await interaction.response.send_message("\n".join(messages), ephemeral=True)
-        
 
+        await interaction.followup.send(
+            f"Multiple tickers found for {user_states[user_id]['current_request']}:",
+            view=TickerView(user_id, user_states[user_id]),
+            ephemeral=True
+        )
+    else:
+        await interaction.followup.send(
+            "\n".join(messages) if messages else "Done.",
+            ephemeral=True
+        )
+
+        
 @bot.tree.command(name="count", description="Show the count of all ticker requests.")
 async def count(interaction: discord.Interaction):
     tally = bot.db.requests_count(interaction.guild_id)
